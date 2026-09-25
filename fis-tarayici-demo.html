@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f6f8fb">
+<title>FişTarayıcı — Ücretsiz Demo</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--ink:#142033;--muted:#718096;--line:#e8edf4;--blue:#1667ff;--green:#0c9f6e;--red:#e34b4b}
+*{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#eef5ff 0,#f7f9fc 260px);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink)}
+.wrap{max-width:760px;margin:auto;padding:22px 16px 60px}.top{display:flex;align-items:center;gap:11px;margin:4px 2px 24px}.logo{width:42px;height:42px;border-radius:14px;background:#1667ff;color:#fff;display:grid;place-items:center;font-size:22px;box-shadow:0 8px 22px #1667ff35}.brand b{font-size:18px}.brand div{font-size:12px;color:var(--muted);margin-top:2px}
+.hero{margin-bottom:16px}.hero h1{font-size:30px;line-height:1.08;margin:0 0 9px;letter-spacing:-.8px}.hero p{margin:0;color:var(--muted);line-height:1.5;font-size:14px}
+.card{background:rgba(255,255,255,.94);border:1px solid #e7ecf3;border-radius:22px;padding:16px;box-shadow:0 12px 35px rgba(35,55,80,.07);margin-top:14px}
+.upload{border:1.5px dashed #b9c9df;border-radius:18px;min-height:190px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:22px;background:#fbfdff;overflow:hidden}
+.upload .ico{font-size:38px;margin-bottom:8px}.upload b{font-size:16px}.upload small{display:block;color:var(--muted);margin-top:6px;line-height:1.4}
+#preview{display:none;max-height:390px;max-width:100%;border-radius:14px;object-fit:contain}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.btn{border:0;border-radius:14px;padding:14px 12px;font-weight:700;font-size:14px;cursor:pointer}.primary{background:var(--blue);color:#fff}.secondary{background:#edf3ff;color:#1657cf}.btn:disabled{opacity:.45}
+#file{display:none}.progress{display:none;margin-top:15px}.bar{height:9px;background:#edf1f6;border-radius:20px;overflow:hidden}.fill{height:100%;width:0;background:var(--blue);transition:.2s}.progressRow{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-top:7px}
+.results{display:none}.sectionTitle{font-size:13px;font-weight:800;color:#53657a;text-transform:uppercase;letter-spacing:.6px;margin:2px 0 12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{padding:12px;border-radius:14px;background:#f7f9fc;border:1px solid #edf0f5}.stat span{display:block;color:var(--muted);font-size:11px;margin-bottom:5px}.stat b{font-size:14px;word-break:break-word}.total{background:#eefbf6;border-color:#d6f3e7}.total b{color:var(--green);font-size:20px}
+.tableWrap{overflow:auto;border:1px solid var(--line);border-radius:14px}table{width:100%;border-collapse:collapse;min-width:470px;font-size:13px}th,td{text-align:left;padding:11px;border-bottom:1px solid var(--line)}th{background:#f8fafc;color:#66788c;font-size:11px}tr:last-child td{border-bottom:0}td:last-child,th:last-child{text-align:right}
+details{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}summary{cursor:pointer;font-size:13px;font-weight:700;color:#52647a}pre{white-space:pre-wrap;font-size:11px;line-height:1.45;color:#4b5d70;background:#f7f9fc;padding:12px;border-radius:12px;max-height:280px;overflow:auto}
+.note{font-size:11px;color:#8491a2;line-height:1.45;margin-top:14px;text-align:center}.pill{display:inline-block;background:#e9f8f2;color:#087a56;padding:5px 8px;border-radius:20px;font-size:10px;font-weight:800;margin-bottom:9px}
+@media(max-width:480px){.wrap{padding-top:16px}.hero h1{font-size:27px}.grid{grid-template-columns:1fr 1fr}.card{border-radius:19px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div class="logo">▤</div><div class="brand"><b>FişTarayıcı</b><div>Cihaz üzerinde ücretsiz OCR demo</div></div></div>
+  <div class="hero"><div class="pill">API KEY YOK • VERİTABANI YOK</div><h1>Fişini çek,<br>detaylarını çıkar.</h1><p>Fişi kameradan çek veya galeriden seç. Görüntü tarayıcı içinde OCR ile okunur ve temel bilgiler otomatik ayrıştırılır.</p></div>
+
+  <div class="card">
+    <div class="upload" id="uploadBox">
+      <div id="empty"><div class="ico">🧾</div><b>Fiş fotoğrafı seç</b><small>Net, düz ve mümkünse fişin tamamını içeren<br>bir fotoğraf en iyi sonucu verir.</small></div>
+      <img id="preview" alt="Fiş önizleme">
+    </div>
+    <input id="file" type="file" accept="image/*" capture="environment">
+    <div class="actions">
+      <button class="btn secondary" id="pick">📷 Fiş Seç / Çek</button>
+      <button class="btn primary" id="scan" disabled>✨ Fişi Analiz Et</button>
+    </div>
+    <div class="progress" id="progress"><div class="bar"><div class="fill" id="fill"></div></div><div class="progressRow"><span id="status">Hazırlanıyor…</span><b id="pct">0%</b></div></div>
+  </div>
+
+  <div class="card results" id="results">
+    <div class="sectionTitle">Fiş Özeti</div>
+    <div class="grid">
+      <div class="stat"><span>İŞLETME</span><b id="merchant">—</b></div>
+      <div class="stat"><span>TARİH</span><b id="date">—</b></div>
+      <div class="stat"><span>FİŞ / BELGE NO</span><b id="receipt">—</b></div>
+      <div class="stat total"><span>TOPLAM</span><b id="total">—</b></div>
+      <div class="stat"><span>KDV</span><b id="vat">—</b></div>
+      <div class="stat"><span>ÖDEME</span><b id="payment">—</b></div>
+    </div>
+    <div class="sectionTitle" style="margin-top:20px">Algılanan Satırlar / Ürünler</div>
+    <div class="tableWrap"><table><thead><tr><th>Açıklama</th><th>Tutar</th></tr></thead><tbody id="items"></tbody></table></div>
+    <details><summary>Ham OCR metnini göster</summary><pre id="raw"></pre></details>
+  </div>
+  <div class="note">Demo sürümüdür. OCR ücretsiz olarak Tesseract.js ile cihazınızda çalışır. İlk kullanımda OCR dil dosyalarının internetten indirilmesi gerekir; sonuçlar sunucumuza kaydedilmez.</div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let imageFile=null;
+$('pick').onclick=()=>$('file').click();
+$('uploadBox').onclick=()=>$('file').click();
+$('file').onchange=e=>{
+  imageFile=e.target.files[0]; if(!imageFile)return;
+  $('preview').src=URL.createObjectURL(imageFile); $('preview').style.display='block'; $('empty').style.display='none'; $('scan').disabled=false; $('results').style.display='none';
+};
+function money(s){ if(!s)return '—'; s=s.replace(/\s/g,'').replace(/[₺TL]/gi,''); return '₺'+s; }
+function parse(text){
+ const lines=text.split(/\n/).map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean);
+ const upper=text.toLocaleUpperCase('tr-TR');
+ let merchant=lines.find(x=>x.length>2 && !/TAR[Iİ]H|F[Iİ][ŞS]|VERG[Iİ]|TEL|SAAT|NO[:\s]/i.test(x))||'—';
+ let dm=text.match(/\b([0-3]?\d[.\/-][01]?\d[.\/-](?:20)?\d{2})\b/);
+ let rn=text.match(/(?:F[Iİ][ŞS]|BELGE|FATURA)\s*(?:NO|NUMARASI)?\s*[:#]?\s*([A-Z0-9-]{3,})/i);
+ let totals=[...text.matchAll(/(?:GENEL\s*)?TOPLAM[^\d]{0,12}(\d{1,6}[.,]\d{2})/gi)].map(m=>m[1]);
+ let vat=text.match(/(?:KDV|TOPKDV|TOPLAM KDV)[^\d]{0,12}(\d{1,6}[.,]\d{2})/i);
+ let payment=/KRED[Iİ]\s*KART|BANKA\s*KART|POS/i.test(upper)?'Kart':(/NAK[Iİ]T/i.test(upper)?'Nakit':'—');
+ let skip=/TOPLAM|KDV|NAK[Iİ]T|KRED[Iİ]|PARA\s*ÜST|TAR[Iİ]H|SAAT|F[Iİ][ŞS]\s*NO|VERG[Iİ]|TEŞEKKÜR|TES[EŞ]KKUR/i;
+ let items=[];
+ for(const line of lines){
+   if(skip.test(line))continue;
+   let m=line.match(/^(.{2,}?)\s+[*xX]?\s*(\d{1,6}[.,]\d{2})\s*(?:TL|₺)?$/);
+   if(m && /[A-Za-zÇĞİÖŞÜçğıöşü]/.test(m[1])) items.push({name:m[1].trim(),price:m[2]});
+ }
+ return {merchant,date:dm?dm[1]:'—',receipt:rn?rn[1]:'—',total:totals.length?totals[totals.length-1]:'',vat:vat?vat[1]:'',payment,items};
+}
+$('scan').onclick=async()=>{
+ if(!imageFile)return;
+ $('scan').disabled=true;$('progress').style.display='block';$('fill').style.width='2%';$('pct').textContent='2%';$('status').textContent='OCR hazırlanıyor…';
+ try{
+  const result=await Tesseract.recognize(imageFile,'tur+eng',{logger:m=>{
+    if(m.status==='recognizing text'){
+      let p=Math.round((m.progress||0)*100);$('fill').style.width=p+'%';$('pct').textContent=p+'%';$('status').textContent='Fiş okunuyor…';
+    } else if(m.status) $('status').textContent='OCR: '+m.status;
+  }});
+  const text=result.data.text||''; const d=parse(text);
+  $('merchant').textContent=d.merchant;$('date').textContent=d.date;$('receipt').textContent=d.receipt;$('total').textContent=money(d.total);$('vat').textContent=money(d.vat);$('payment').textContent=d.payment;$('raw').textContent=text||'Metin algılanamadı.';
+  $('items').innerHTML=d.items.length?d.items.map(i=>`<tr><td>${i.name.replace(/</g,'&lt;')}</td><td>${money(i.price)}</td></tr>`).join(''):'<tr><td colspan="2" style="text-align:center;color:#8491a2">Ürün satırı otomatik ayrıştırılamadı. Ham OCR metnini aşağıdan kontrol edin.</td></tr>';
+  $('fill').style.width='100%';$('pct').textContent='100%';$('status').textContent='Analiz tamamlandı';$('results').style.display='block';$('results').scrollIntoView({behavior:'smooth',block:'start'});
+ }catch(err){
+  $('status').textContent='OCR başlatılamadı'; alert('OCR hatası: '+err.message+'\n\nİnternet bağlantınızı kontrol edin. İlk kullanımda Tesseract dil dosyalarını indirir.');
+ }finally{$('scan').disabled=false}
+};
+</script>
+</body>
+</html>
