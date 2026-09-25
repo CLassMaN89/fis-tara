@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f5f8fc">
+<title>Fiş Tarayıcı v4</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+<style>
+:root{--bg:#f5f8fc;--card:#fff;--ink:#172238;--muted:#718198;--line:#e4eaf2;--blue:#1769ff;--green:#08a575;--orange:#e98a19}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#eef5ff,#f7f9fc 330px);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink)}
+.wrap{max-width:760px;margin:auto;padding:22px 16px 60px}.badge{display:inline-flex;gap:6px;background:#eaf9f3;color:#087a59;border-radius:99px;padding:6px 9px;font-size:10px;font-weight:850}h1{font-size:31px;letter-spacing:-.8px;line-height:1.08;margin:12px 0 8px}p{color:var(--muted);font-size:14px;line-height:1.5;margin:0}
+.card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:16px;margin-top:15px;box-shadow:0 12px 35px #20395a0d}
+.drop{min-height:205px;border:1.5px dashed #b9c9dd;border-radius:18px;display:grid;place-items:center;text-align:center;padding:18px;background:#fbfdff}.drop .i{font-size:38px}.drop small{display:block;color:var(--muted);margin-top:7px}#preview{display:none;max-width:100%;max-height:430px;border-radius:14px}
+input{position:absolute;left:-9999px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:11px}button{border:0;border-radius:14px;padding:14px 10px;font-size:14px;font-weight:750;cursor:pointer}.soft{background:#edf3ff;color:#175bd3}.primary{background:var(--blue);color:white;width:100%;margin-top:9px}.primary:disabled{opacity:.42}
+.progress{display:none;margin-top:15px}.bar{height:9px;background:#edf1f6;border-radius:30px;overflow:hidden}.fill{height:100%;width:0;background:var(--blue);transition:.15s}.pr{display:flex;justify-content:space-between;margin-top:7px;font-size:12px;color:var(--muted)}
+.results{display:none}.title{font-size:13px;font-weight:850;color:#52667e;letter-spacing:.5px;text-transform:uppercase;margin:2px 0 11px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.stat{border:1px solid #e9edf3;background:#f8fafc;border-radius:15px;padding:12px;min-height:72px}.stat span{display:block;font-size:10px;color:#7b8aa0;margin-bottom:5px}.stat b{font-size:14px;word-break:break-word}.stat.total{background:#eefbf6;border-color:#d2f1e4}.stat.total b{color:var(--green);font-size:20px}.confidence{font-size:10px!important;color:var(--orange)!important;margin-top:4px}
+.table{overflow:auto;border:1px solid var(--line);border-radius:15px}table{border-collapse:collapse;width:100%;min-width:520px;font-size:12px}th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left}th{background:#f8fafc;color:#66798f;font-size:10px}td.num,th.num{text-align:right}tr:last-child td{border-bottom:0}
+details{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}summary{font-size:13px;font-weight:750;color:#53677f}pre{white-space:pre-wrap;background:#f7f9fc;padding:12px;border-radius:12px;font-size:11px;line-height:1.45;max-height:330px;overflow:auto;color:#506177}
+.note{text-align:center;color:#8a98aa;font-size:10px;line-height:1.45;margin-top:14px}
+</style>
+</head>
+<body><main class="wrap">
+<div class="badge">V4 • OTOMATİK DÜZELTME • ÜCRETSİZ</div>
+<h1>Fişi tara,<br>bilgileri ayır.</h1>
+<p>v4 elde ve açılı çekilen fişi otomatik bulmaya, perspektifi düzeltmeye, arka planı atmaya ve farklı görüntü sürümlerini karşılaştırarak okumaya çalışır.</p>
+
+<section class="card">
+<div class="drop" id="drop"><div id="empty"><div class="i">🧾</div><b>Fiş fotoğrafı bekleniyor</b><small>Fişin tamamı kadrajda ve yazılar net olsun.</small></div><img id="preview"></div>
+<input id="camera" type="file" accept="image/*" capture="environment">
+<input id="gallery" type="file" accept="image/*">
+<div class="actions"><button class="soft" id="cameraBtn">📷 Kamerayı Aç</button><button class="soft" id="galleryBtn">🖼️ Galeriden Seç</button></div>
+<button class="primary" id="scan" disabled>✨ Otomatik Düzelt ve Analiz Et</button>
+<div class="progress" id="progress"><div class="bar"><div class="fill" id="fill"></div></div><div class="pr"><span id="status">Hazırlanıyor…</span><b id="pct">0%</b></div></div>
+</section>
+
+<section class="card results" id="results">
+<div class="title">Fiş Özeti</div>
+<div class="grid">
+<div class="stat"><span>İŞLETME</span><b id="merchant">Algılanamadı</b></div>
+<div class="stat"><span>TARİH / SAAT</span><b id="datetime">Algılanamadı</b></div>
+<div class="stat"><span>FİŞ / BELGE NO</span><b id="receipt">Algılanamadı</b></div>
+<div class="stat total"><span>GENEL TOPLAM</span><b id="total">Algılanamadı</b></div>
+<div class="stat"><span>KDV</span><b id="vat">Algılanamadı</b></div>
+<div class="stat"><span>ÖDEME</span><b id="payment">Algılanamadı</b></div>
+</div>
+<div class="title" style="margin-top:20px">Ürünler / Satırlar</div>
+<div class="table"><table><thead><tr><th>Açıklama</th><th class="num">Adet</th><th class="num">Birim</th><th class="num">Tutar</th></tr></thead><tbody id="items"></tbody></table></div>
+<details><summary>Ham OCR metnini göster</summary><pre id="raw"></pre></details>
+</section>
+<div class="note">Fotoğraf ve OCR sonucu veritabanına gönderilmez. Tesseract dil dosyaları internetten yüklenir.</div>
+</main>
+<script>
+const $=x=>document.getElementById(x); let selected=null;
+function setFile(f){if(!f)return;selected=f;preview.src=URL.createObjectURL(f);preview.style.display='block';empty.style.display='none';scan.disabled=false;results.style.display='none'}
+cameraBtn.onclick=()=>camera.click(); galleryBtn.onclick=()=>gallery.click();
+camera.onchange=e=>setFile(e.target.files[0]); gallery.onchange=e=>setFile(e.target.files[0]);
+
+function normalize(s){return s.replace(/[|¦]/g,'I').replace(/[“”]/g,'"').replace(/\s+/g,' ').trim()}
+function val(s){if(!s)return null;let x=s.replace(/[^\d,.-]/g,'').replace(/\.(?=\d{3}(?:\D|$))/g,'').replace(',','.');let n=parseFloat(x);return Number.isFinite(n)?n:null}
+function tl(n){return n==null?'Algılanamadı':new Intl.NumberFormat('tr-TR',{style:'currency',currency:'TRY'}).format(n)}
+function basicPreprocess(img){
+ const c=document.createElement('canvas'),ctx=c.getContext('2d',{willReadFrequently:true});
+ let max=1900,scale=Math.min(1,max/img.naturalWidth);c.width=Math.round(img.naturalWidth*scale);c.height=Math.round(img.naturalHeight*scale);
+ ctx.drawImage(img,0,0,c.width,c.height);let d=ctx.getImageData(0,0,c.width,c.height),a=d.data;
+ for(let i=0;i<a.length;i+=4){let g=.299*a[i]+.587*a[i+1]+.114*a[i+2];g=g<150?Math.max(0,g*.48):Math.min(255,132+(g-132)*1.62);a[i]=a[i+1]=a[i+2]=g}
+ ctx.putImageData(d,0,0);return c;
+}
+function waitForCV(timeout=6000){
+ return new Promise(resolve=>{let t=0;const q=()=>{if(window.cv&&cv.Mat){resolve(true);return}t+=100;if(t>=timeout){resolve(false);return}setTimeout(q,100)};q()})
+}
+function orderPoints(pts){
+ let sums=pts.map(p=>p.x+p.y), diffs=pts.map(p=>p.y-p.x);
+ return [
+   pts[sums.indexOf(Math.min(...sums))],
+   pts[diffs.indexOf(Math.min(...diffs))],
+   pts[sums.indexOf(Math.max(...sums))],
+   pts[diffs.indexOf(Math.max(...diffs))]
+ ];
+}
+async function rectifyReceipt(img){
+ const ready=await waitForCV(); if(!ready)return null;
+ let input=document.createElement('canvas'),ictx=input.getContext('2d');
+ let scale=Math.min(1,1800/img.naturalWidth);input.width=Math.round(img.naturalWidth*scale);input.height=Math.round(img.naturalHeight*scale);ictx.drawImage(img,0,0,input.width,input.height);
+ let src=null,gray=null,blur=null,edge=null,contours=null,hierarchy=null;
+ try{
+   src=cv.imread(input);gray=new cv.Mat();blur=new cv.Mat();edge=new cv.Mat();
+   cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);cv.GaussianBlur(gray,blur,new cv.Size(5,5),0);
+   cv.Canny(blur,edge,45,130);let kernel=cv.getStructuringElement(cv.MORPH_RECT,new cv.Size(5,5));cv.dilate(edge,edge,kernel);kernel.delete();
+   contours=new cv.MatVector();hierarchy=new cv.Mat();cv.findContours(edge,contours,hierarchy,cv.RETR_LIST,cv.CHAIN_APPROX_SIMPLE);
+   let best=null,bestArea=0,imgArea=input.width*input.height;
+   for(let i=0;i<contours.size();i++){
+     let cnt=contours.get(i),peri=cv.arcLength(cnt,true),approx=new cv.Mat();
+     cv.approxPolyDP(cnt,approx,.025*peri,true);let area=Math.abs(cv.contourArea(approx));
+     if(approx.rows===4 && area>imgArea*.12 && area>bestArea && cv.isContourConvex(approx)){
+       let pts=[];for(let j=0;j<4;j++)pts.push({x:approx.intPtr(j,0)[0],y:approx.intPtr(j,0)[1]});
+       best=pts;bestArea=area;
+     }
+     approx.delete();cnt.delete();
+   }
+   if(!best)return null;
+   let p=orderPoints(best),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+   let w=Math.round(Math.max(dist(p[0],p[1]),dist(p[3],p[2]))),h=Math.round(Math.max(dist(p[0],p[3]),dist(p[1],p[2])));
+   if(w<250||h<350)return null;if(w>h){let tmp=w;w=h;h=tmp}
+   let srcTri=cv.matFromArray(4,1,cv.CV_32FC2,[p[0].x,p[0].y,p[1].x,p[1].y,p[2].x,p[2].y,p[3].x,p[3].y]);
+   let dstTri=cv.matFromArray(4,1,cv.CV_32FC2,[0,0,w-1,0,w-1,h-1,0,h-1]);
+   let M=cv.getPerspectiveTransform(srcTri,dstTri),dst=new cv.Mat();
+   cv.warpPerspective(src,dst,M,new cv.Size(w,h),cv.INTER_CUBIC,cv.BORDER_REPLICATE,new cv.Scalar());
+   let out=document.createElement('canvas');out.width=w;out.height=h;cv.imshow(out,dst);
+   srcTri.delete();dstTri.delete();M.delete();dst.delete();
+   return out;
+ }catch(e){console.warn('Perspective correction skipped',e);return null}
+ finally{[src,gray,blur,edge,hierarchy].forEach(x=>{try{x&&x.delete()}catch(_){}});try{contours&&contours.delete()}catch(_){}}
+}
+function enhanceCanvas(canvas,mode){
+ let out=document.createElement('canvas');out.width=canvas.width;out.height=canvas.height;let ctx=out.getContext('2d',{willReadFrequently:true});ctx.drawImage(canvas,0,0);
+ let d=ctx.getImageData(0,0,out.width,out.height),a=d.data;
+ for(let i=0;i<a.length;i+=4){
+   let g=.299*a[i]+.587*a[i+1]+.114*a[i+2];
+   if(mode==='bw')g=g<172?0:255;
+   else g=Math.max(0,Math.min(255,(g-128)*1.8+145));
+   a[i]=a[i+1]=a[i+2]=g;
+ }
+ ctx.putImageData(d,0,0);return out;
+}
+function parseReceipt(text){
+ const rawLines=text.split(/\n/).map(normalize).filter(x=>x.length>1);
+ const upper=text.toLocaleUpperCase('tr-TR');
+ const ignoreMerchant=/F[Iİ][ŞS]|TAR[Iİ]H|SAAT|VERG[Iİ]|V\.?D|TEL|MERS[Iİ]S|ETTN|NO\b|POS|BANKA|KDV|TOPLAM|SAT[Iİ][ŞS]|İŞYERİ|ISYERI/i;
+ const known=['MIGROS','MİGROS','A101','BİM','BIM','ŞOK','SOK','CARREFOUR','METRO','MACROCENTER','FILE MARKET','FİLE MARKET','ÖZDİLEK','OZDILEK'];
+ let merchant='Algılanamadı';
+ for(const k of known){if(upper.includes(k)){merchant=k.replace('MIGROS','MİGROS').replace('BIM','BİM').replace('SOK','ŞOK');break}}
+ if(merchant==='Algılanamadı'){let candidates=rawLines.slice(0,12).filter(x=>/[A-Za-zÇĞİÖŞÜçğıöşü]{3}/.test(x)&&!ignoreMerchant.test(x)&&x.length<55);if(candidates.length)merchant=candidates.sort((a,b)=>b.replace(/[^A-ZÇĞİÖŞÜ]/gi,'').length-a.replace(/[^A-ZÇĞİÖŞÜ]/gi,'').length)[0]}
+ let date=null,time=null;
+ let dm=text.match(/\b([0-3]?\d[.\/-][01]?\d[.\/-](?:20)?\d{2,4})\b/); if(dm)date=dm[1];
+ if(!date){let dm2=text.match(/\b([0-3]?\d)\s+([01]?\d)\s+(20\d{2})\b/);if(dm2)date=`${dm2[1]}.${dm2[2]}.${dm2[3]}`}
+ let tm=text.match(/\b([0-2]?\d[:.][0-5]\d)\b/);if(tm)time=tm[1].replace('.',':');
+ let receipt='Algılanamadı';
+ let rm=text.match(/(?:F[Iİ][ŞS]|BELGE)\s*(?:NO|N0|NUMARASI)?\s*[:#]?\s*[*]?\s*([A-Z0-9-]{2,12})/i);
+ if(rm && !/^(NO|N0)$/i.test(rm[1])) receipt=rm[1];
+ let vat=null;
+ const vatPatterns=[/(?:TOPLAM\s*)?KDV[^\d]{0,15}(\d{1,7}[.,]\d{2})/gi,/\bKDV\b.*?(\d{1,7}[.,]\d{2})/gi];
+ for(const re of vatPatterns){let ms=[...text.matchAll(re)];if(ms.length){vat=val(ms[ms.length-1][1]);break}}
+ let total=null;
+ const totalRes=[/(?:GENEL\s+TOPLAM|ÖDENECEK|ODENECEK|TOPLAM\s+TUTAR|\bTOP\b)[^\d]{0,20}[*\s]*(\d{1,7}[.,]\d{2})/gi,/\bTOPLAM\b[^\d]{0,15}(\d{1,7}[.,]\d{2})/gi];
+ for(const re of totalRes){let ms=[...text.matchAll(re)];if(ms.length){total=val(ms[ms.length-1][1]);break}}
+ let payment=/KRED[Iİ]\s*KART|BANKA\s*KART|POS|GARANT[İI]|V[Iİ]SA|MASTERCARD/i.test(upper)?'Kart':(/NAK[Iİ]T/i.test(upper)?'Nakit':'Algılanamadı');
+ const skip=/TOPLAM|KDV|NAK[Iİ]T|KRED[Iİ]|BANKA|POS|TAR[Iİ]H|SAAT|F[Iİ][ŞS]|VERG[Iİ]|V\.D|TEŞEKK|MERS[Iİ]S|İŞYERİ|ISYERI|PARA ÜST/i;
+ let items=[];
+ for(let i=0;i<rawLines.length;i++){
+   let line=rawLines[i]; if(skip.test(line))continue;
+   let m=line.match(/^(.{2,}?[A-Za-zÇĞİÖŞÜçğıöşü].*?)\s+(?:(\d+(?:[.,]\d+)?)\s*[xX*]\s*(\d{1,7}[.,]\d{2})\s+)?(\d{1,7}[.,]\d{2})\s*(?:TL|₺)?$/);
+   if(m){let name=m[1].replace(/^[^A-Za-zÇĞİÖŞÜçğıöşü]+/,'').trim();if(name.length>1)items.push({name,qty:m[2]||'',unit:m[3]?val(m[3]):null,total:val(m[4])})}
+ }
+ // If no explicit total was found, do NOT invent it. Product rows can be noisy.
+ return {merchant,datetime:[date,time].filter(Boolean).join(' ')||'Algılanamadı',receipt,total,vat,payment,items};
+}
+async function recognize(source,label,start,end){
+ return await Tesseract.recognize(source,'tur+eng',{logger:m=>{if(m.status==='recognizing text'){let p=Math.round(start+(m.progress||0)*(end-start));fill.style.width=p+'%';pct.textContent=p+'%';status.textContent=label}}});
+}
+scan.onclick=async()=>{
+ if(!selected)return;scan.disabled=true;progress.style.display='block';fill.style.width='2%';pct.textContent='2%';
+ try{
+   status.textContent='Görüntü hazırlanıyor…';
+   const img=new Image();img.src=URL.createObjectURL(selected);await new Promise((ok,no)=>{img.onload=ok;img.onerror=no});
+   status.textContent='Fiş sınırları aranıyor…';
+   const rectified=await rectifyReceipt(img);
+   const base=rectified||basicPreprocess(img);
+   const contrast=enhanceCanvas(base,'contrast');
+   const bw=enhanceCanvas(base,'bw');
+   const r1=await recognize(contrast,rectified?'Perspektif düzeltildi, fiş okunuyor…':'Fiş okunuyor…',8,48);
+   const r2=await recognize(bw,'İkinci görüntü sürümü kontrol ediliyor…',48,82);
+   const r3=await recognize(selected,'Orijinal fotoğraf karşılaştırılıyor…',82,96);
+   const candidates=[r1.data.text||'',r2.data.text||'',r3.data.text||''];
+   function score(t){let s=t.replace(/\s/g,'').length; if(/TOP|TOPLAM/i.test(t))s+=120;if(/KDV/i.test(t))s+=90;if(/F[Iİ][ŞS]/i.test(t))s+=70;if(/\d+[.,]\d{2}/.test(t))s+=60;return s}
+   let text=candidates.sort((a,b)=>score(b)-score(a))[0];
+   status.textContent='Alanlar ayrıştırılıyor…';
+   const d=parseReceipt(text);
+   merchant.textContent=d.merchant;datetime.textContent=d.datetime;receipt.textContent=d.receipt;total.textContent=tl(d.total);vat.textContent=tl(d.vat);payment.textContent=d.payment;raw.textContent=text||'Metin algılanamadı.';
+   items.innerHTML=d.items.length?d.items.map(x=>`<tr><td>${x.name.replace(/</g,'&lt;')}</td><td class="num">${x.qty||'—'}</td><td class="num">${x.unit==null?'—':tl(x.unit)}</td><td class="num">${x.total==null?'—':tl(x.total)}</td></tr>`).join(''):`<tr><td colspan="4" style="text-align:center;color:#8190a3">Ürün satırları güvenilir şekilde ayrıştırılamadı.</td></tr>`;
+   fill.style.width='100%';pct.textContent='100%';status.textContent='Analiz tamamlandı';results.style.display='block';results.scrollIntoView({behavior:'smooth',block:'start'});
+ }catch(e){alert('Analiz hatası: '+e.message);status.textContent='Hata oluştu'}finally{scan.disabled=false}
+};
+</script></body></html>
