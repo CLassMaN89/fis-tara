@@ -1,0 +1,27 @@
+<!doctype html><html lang="tr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Fiş Tarayıcı v5</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f7fb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172238}.w{max-width:700px;margin:auto;padding:24px 16px 50px}.tag{display:inline-block;background:#e9f8f2;color:#087a56;border-radius:20px;padding:6px 9px;font-size:11px;font-weight:800}h1{font-size:32px;margin:12px 0 7px}p{color:#718096;line-height:1.5}.card{background:#fff;border:1px solid #e4eaf2;border-radius:22px;padding:16px;margin-top:16px}.drop{min-height:220px;border:2px dashed #c5d2e3;border-radius:18px;display:grid;place-items:center;text-align:center;padding:18px}#prev{display:none;max-width:100%;max-height:480px;border-radius:14px}input{position:absolute;left:-9999px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:11px}button{border:0;border-radius:14px;padding:15px;font-weight:750;font-size:14px;background:#edf3ff;color:#175bd3}.go{width:100%;margin-top:10px;background:#1769ff;color:#fff}.go:disabled{opacity:.45}.msg{display:none;margin-top:12px;background:#f7f9fc;border-radius:12px;padding:12px;color:#61748b;font-size:13px}.res{display:none}.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.x{background:#f8fafc;border:1px solid #e9edf3;border-radius:15px;padding:12px}.x small{display:block;color:#7b8aa0;font-size:10px;margin-bottom:5px}.x.total{background:#eefbf6}.x.total b{font-size:20px;color:#08a575}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:10px;border-bottom:1px solid #e5eaf1;text-align:left}th:last-child,td:last-child{text-align:right}pre{white-space:pre-wrap;background:#f7f9fc;padding:12px;border-radius:12px;max-height:300px;overflow:auto;font-size:11px}.err{color:#b42318}
+</style></head><body><main class="w">
+<span class="tag">V5 • PADDLEOCR BACKEND</span><h1>Fişi çek,<br>sunucu okusun.</h1>
+<p>Bu sürüm Tesseract kullanmaz. Fotoğrafı kendi PaddleOCR servisine gönderir; API anahtarı gerektirmez.</p>
+<section class="card"><div class="drop"><div id="empty">🧾<br><b>Fiş fotoğrafı bekleniyor</b></div><img id="prev"></div>
+<input id="cam" type="file" accept="image/*" capture="environment"><input id="gal" type="file" accept="image/*">
+<div class="row"><button id="bc">📷 Kamerayı Aç</button><button id="bg">🖼️ Galeriden Seç</button></div>
+<button class="go" id="scan" disabled>✨ PaddleOCR ile Analiz Et</button><div class="msg" id="msg"></div></section>
+<section class="card res" id="res"><h3>Fiş Özeti</h3><div class="grid">
+<div class="x"><small>İŞLETME</small><b id="merchant">—</b></div><div class="x"><small>TARİH / SAAT</small><b id="dt">—</b></div>
+<div class="x"><small>FİŞ NO</small><b id="no">—</b></div><div class="x total"><small>TOPLAM</small><b id="total">—</b></div>
+<div class="x"><small>KDV</small><b id="vat">—</b></div><div class="x"><small>ÖDEME</small><b id="payment">—</b></div></div>
+<h3>Algılanan satırlar</h3><table><thead><tr><th>Metin</th><th>Güven</th></tr></thead><tbody id="lines"></tbody></table>
+<details><summary>Ham OCR</summary><pre id="raw"></pre></details></section></main>
+<script>
+const $=x=>document.getElementById(x);let f=null;
+function load(x){if(!x)return;f=x;prev.src=URL.createObjectURL(x);prev.style.display='block';empty.style.display='none';scan.disabled=false;res.style.display='none'}
+bc.onclick=()=>cam.click();bg.onclick=()=>gal.click();cam.onchange=e=>load(e.target.files[0]);gal.onchange=e=>load(e.target.files[0]);
+scan.onclick=async()=>{if(!f)return;scan.disabled=true;msg.style.display='block';msg.className='msg';msg.textContent='Fiş PaddleOCR sunucusuna gönderiliyor…';
+try{let fd=new FormData();fd.append('image',f);let r=await fetch('/api/ocr',{method:'POST',body:fd});let j=await r.json();if(!r.ok)throw new Error(j.error||'OCR servisi yanıt vermedi');
+merchant.textContent=j.receipt.merchant||'Algılanamadı';dt.textContent=[j.receipt.date,j.receipt.time].filter(Boolean).join(' ')||'Algılanamadı';no.textContent=j.receipt.receipt_no||'Algılanamadı';total.textContent=j.receipt.total!=null?'₺'+Number(j.receipt.total).toLocaleString('tr-TR',{minimumFractionDigits:2}):'Algılanamadı';vat.textContent=j.receipt.vat!=null?'₺'+Number(j.receipt.vat).toLocaleString('tr-TR',{minimumFractionDigits:2}):'Algılanamadı';payment.textContent=j.receipt.payment||'Algılanamadı';raw.textContent=j.text||'';lines.innerHTML=(j.lines||[]).slice(0,100).map(x=>`<tr><td>${String(x.text).replace(/</g,'&lt;')}</td><td>${Math.round((x.score||0)*100)}%</td></tr>`).join('');res.style.display='block';msg.textContent='Analiz tamamlandı.';res.scrollIntoView({behavior:'smooth'})}
+catch(e){msg.className='msg err';msg.textContent='Hata: '+e.message+' — README içindeki backend kurulumunu tamamla.'}finally{scan.disabled=false}};
+</script></body></html>
